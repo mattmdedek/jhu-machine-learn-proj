@@ -8,7 +8,6 @@
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
 <meta name="generator" content="pandoc" />
 
-<meta name="author" content="Matt Dedek" />
 
 
 <title>Practical Machine Learning Course Project</title>
@@ -53,7 +52,6 @@ if (window.hljs && document.readyState && document.readyState === "complete") {
 
 <div id="header">
 <h1 class="title">Practical Machine Learning Course Project</h1>
-<h4 class="author"><em>Matt Dedek</em></h4>
 <h4 class="date"><em>Sunday, January 25, 2015</em></h4>
 </div>
 
@@ -125,17 +123,17 @@ training &lt;- read.table(&quot;data/pml-training.csv&quot;, sep=&quot;,&quot;, 
 # Subset the data to only look at predictors of interest
 trainDf &lt;- training[,c(predictors, &quot;classe&quot;)]
 
-# Split the training data into a training set (70%) and a probe set (70%)
-# The probe set will be used to test accuracy.
+# Split the training data into a training set (70%) and a probe set (30%)
+# The probe set will be used to estimate accuracy.
 inTrain &lt;- createDataPartition(y=trainDf$classe, p=0.7, list=F)
 trainSet &lt;- trainDf[inTrain,]
 probeSet &lt;- trainDf[-inTrain,]</code></pre>
 </div>
 <div id="model-training" class="section level2">
 <h2>Model Training</h2>
-<p>I use the ‘gbm’ method of the caret package to Bagging with trees. Caret builds in cross-validation.</p>
+<p>I use the ‘gbm’ method of the caret package to implement Bagging with trees. Caret uses cross validation when building the model by default.</p>
 <p>Bagging means that the model will aggregating multiple random forests, this reduces the variability of the final model. The random forest algorithm gives the model more sensitivity by randomizing the predictors. The use of cross-validation reduces overfitting and produces a more generalizable model.</p>
-<p>Since this model takes a long time to build (about 30 minutes), I saved it for future use. The code used to generate the model is shown here, the defaults were used.</p>
+<p>Since this model takes a long time to build (about 30 minutes), I saved it for future use. The code used to generate the model is shown here.</p>
 <pre class="r"><code>modFit &lt;- train(classe ~ ., method=&quot;gbm&quot;, data=trainSet)
 save(modFit, file=&quot;PredictionModel.Rda&quot;)</code></pre>
 <p>This line loads the saved model.</p>
@@ -144,30 +142,26 @@ load(&quot;PredictionModel.Rda&quot;)</code></pre>
 </div>
 <div id="model-accuracy" class="section level2">
 <h2>Model Accuracy</h2>
-<p>As mentioned above, the a probe dataset was set aside to test the accuracy of the model. Here I use the predict function to predict the ‘classe’ of each exercise in the probe data set and compare the prediction to the expected value.</p>
-<pre class="r"><code>probePred &lt;- predict(modFit, probeSet)</code></pre>
-<pre><code>## Loading required package: gbm</code></pre>
-<pre><code>## Warning: package 'gbm' was built under R version 3.1.2</code></pre>
-<pre><code>## Loading required package: survival
-## Loading required package: splines
-## 
-## Attaching package: 'survival'
-## 
-## The following object is masked from 'package:caret':
-## 
-##     cluster
-## 
-## Loading required package: parallel
-## Loaded gbm 2.1</code></pre>
-<pre class="r"><code>predCorrect &lt;- (probeSet$classe == probePred)
+<p>As mentioned above, a ‘probe’ dataset was set aside to test the accuracy of the model. Here I use the predict function to predict the ‘classe’ of each exercise in the probe data set and compare the prediction to the expected value.</p>
+<pre class="r"><code>probePred &lt;- predict(modFit, probeSet)
+predCorrect &lt;- (probeSet$classe == probePred)
 nCorrect &lt;- sum(predCorrect)
 nObs &lt;- nrow(probeSet)
 pcAccuracy &lt;- round(nCorrect * 100 / nObs, 2)</code></pre>
-<p>The expected accuracy of this model is : 96.75%. Not too shabby considering it took one line of code and some patience.</p>
+<p>The expected accuracy of this model is : 96.89%. Not too shabby considering it took one line of code and some patience.</p>
+<p>Here is an additional table comparing the predictions to the expected values:</p>
+<pre class="r"><code>table(probeSet$classe, probePred)</code></pre>
+<pre><code>##    probePred
+##        A    B    C    D    E
+##   A 1656   14    4    0    0
+##   B   34 1086   19    0    0
+##   C    0   26  985   14    1
+##   D    2    3   25  927    7
+##   E    2   12    8   12 1048</code></pre>
 </div>
 <div id="generate-files-for-submission" class="section level2">
 <h2>Generate files for Submission</h2>
-<p>This code was used to create the files for the Submission part of the course project.</p>
+<p>This code was used to create the files for the Submission part of the course project. 20/20 predictions were correct.</p>
 <pre class="r"><code>testing &lt;- read.table(&quot;data/pml-testing.csv&quot;, sep=&quot;,&quot;, header=T, quote=&quot;\&quot;&quot;, na.strings=c(&quot;NA&quot;, &quot;#DIV/0!&quot;, &quot;\&quot;\&quot;&quot;))
 testPred &lt;- predict(modFit, testing)
 
