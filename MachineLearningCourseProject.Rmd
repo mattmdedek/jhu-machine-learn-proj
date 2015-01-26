@@ -7,15 +7,15 @@ output: html_document
 
 
 
-```{r}
+```{r message=FALSE}
 library(ggplot2)
 library(caret)
 library(plyr)
 ```
-```
+
 ## Feature Extraction
 
-I am using all raw features available to build the model. Derived metrics like totals and variances are excluded.
+I am using all of the raw features available to build the model. Derived metrics like total_*metric* and var_*metric* are excluded.
 
 ```{r}
 predictors <- c(
@@ -73,9 +73,14 @@ predictors <- c(
   "total_accel_belt"
 )
 
+# Read the input file
 training <- read.table("data/pml-training.csv", sep=",", header=T, quote="\"", na.strings=c("NA", "#DIV/0!", "\"\""))
 
+# Subset the data to only look at predictors of interest
 trainDf <- training[,c(predictors, "classe")]
+
+# Split the training data into a training set (70%) and a probe set (70%)
+# The probe set will be used to test accuracy.
 inTrain <- createDataPartition(y=trainDf$classe, p=0.7, list=F)
 trainSet <- trainDf[inTrain,]
 probeSet <- trainDf[-inTrain,]
@@ -83,16 +88,18 @@ probeSet <- trainDf[-inTrain,]
 
 ## Model Training
 
-I use the 'gbm' method of the caret package to apply a Random Forest with Bagging and cross-validation. Aggregating over multiple random forests reduces the variability of the models, multiple trees in the random forest gives the model more sensitivity and employing cross validation reduces overfitting.
+I use the 'gbm' method of the caret package to Bagging with trees. Caret builds in cross-validation.
 
-Since the model takes a long time to build, it has been saved for future use, but the code used to generate the model is shown here:
+Bagging means that the model will aggregating multiple random forests, this reduces the variability of the final model. The random forest algorithm gives the model more sensitivity by randomizing the predictors. The use of cross-validation reduces overfitting and produces a more generalizable model.
 
-```{r}
+Since this model takes a long time to build (about 30 minutes), I saved it for future use. The code used to generate the model is shown here, the defaults were used.
+
+```{r eval=FALSE}
 modFit <- train(classe ~ ., method="gbm", data=trainSet)
 save(modFit, file="PredictionModel.Rda")
 ```
 
-Load the trained model here:
+This line loads the saved model.
 
 ```{r}
 # Loads the variable modFit into the workspace
@@ -101,18 +108,21 @@ load("PredictionModel.Rda")
 
 ## Model Accuracy
 
-Here I use the probe dataset to test accuracy.
+As mentioned above, the a probe dataset was set aside to test the accuracy of the model. Here I use the predict function to predict the 'classe' of each exercise in the probe data set and compare the prediction to the expected value.
 
 ```{r}
 probePred <- predict(modFit, probeSet)
 predCorrect <- (probeSet$classe == probePred)
 nCorrect <- sum(predCorrect)
-nIncorrect <- nrow(probeSet) - nCorrect
+nObs <- nrow(probeSet)
+pcAccuracy <- round(nCorrect * 100 / nObs, 2)
 ```
 
-The expected accuracy is therefore: `r round(nCorrect * 100 / nrow(probeSet), 2)`%
+The expected accuracy of this model is : `r pcAccuracy`%. Not too shabby considering it took one line of code and some patience.
 
 ## Generate files for Submission
+
+This code was used to create the files for the Submission part of the course project.
 
 ```{r}
 testing <- read.table("data/pml-testing.csv", sep=",", header=T, quote="\"", na.strings=c("NA", "#DIV/0!", "\"\""))
